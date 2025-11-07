@@ -564,9 +564,9 @@ def get_tllm_linear_sq_weight(
 
     if per_token:
         if per_channel:
-            original_weights = torch.Tensor(vals["weight.int8.col"]).cuda()
+            original_weights = torch.Tensor(vals["weight.int8.col"]).musa()
         else:
-            original_weights = torch.Tensor(vals["weight.int8"]).cuda()
+            original_weights = torch.Tensor(vals["weight.int8"]).musa()
         local_dim = original_weights.shape[0]
         head_size = (original_weights.shape[1] - local_dim) // 2
 
@@ -583,7 +583,7 @@ def get_tllm_linear_sq_weight(
             cur_weights = cur_weights.reshape(hidden_dim, -1)
         results[prefix + "weight"] = cur_weights.t().contiguous()
         if smoother_value is None:
-            results[last_prefix] = torch.Tensor([1.0]).to(torch.float32).cuda()
+            results[last_prefix] = torch.Tensor([1.0]).to(torch.float32).musa()
 
         if per_channel:
             cur_per_channel_value = vals["scale_w_quant_orig.col"]
@@ -621,9 +621,9 @@ def get_tllm_linear_sq_weight(
         ).contiguous()
     else:
         if per_channel:
-            original_weights = torch.Tensor(vals["weight.int8.col"]).cuda()
+            original_weights = torch.Tensor(vals["weight.int8.col"]).musa()
         else:
-            original_weights = torch.Tensor(vals["weight.int8"]).cuda()
+            original_weights = torch.Tensor(vals["weight.int8"]).musa()
         local_dim = original_weights.shape[0]
         head_size = (original_weights.shape[1] - local_dim) // 2
 
@@ -677,19 +677,19 @@ def get_tllm_linear_sq_weight(
             .to(torch.float32)
             .reshape(col_shape)
             .contiguous()
-            .cuda()
+            .musa()
         )
         results[prefix + "act_scale"] = (
             torch.Tensor([[vals["scale_y_quant_orig"]]])
             .to(torch.float32)
             .contiguous()
-            .cuda()
+            .musa()
         )
         results[last_prefix] = (
             torch.Tensor([vals["scale_x_orig_quant"]])
             .to(torch.float32)
             .contiguous()
-            .cuda()
+            .musa()
         )
 
     if smoother_value is not None:

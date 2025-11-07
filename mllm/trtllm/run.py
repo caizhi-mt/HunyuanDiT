@@ -181,15 +181,15 @@ class TRTLLMEncDecModel:
         lora_task_uids=None,
         debug_mode=False,
         skip_encoder=False,
-        stream: torch.cuda.Stream = None,
+        stream: torch.musa.Stream = None,
     ):
-        # in multi-node setup, it's important to set_device at the very beginning so .to('cuda') refers to current device
+        # in multi-node setup, it's important to set_device at the very beginning so .to('musa') refers to current device
         # accordingly, all input & output tensors should be moved to current device
-        # otherwise, it's default to 'cuda:0'
+        # otherwise, it's default to 'musa:0'
         self.runtime_rank = tensorrt_llm.mpi_rank()
-        device_id = self.runtime_rank % torch.cuda.device_count()
-        torch.cuda.set_device(device_id)
-        self.device = torch.cuda.current_device()
+        device_id = self.runtime_rank % torch.musa.device_count()
+        torch.musa.set_device(device_id)
+        self.device = torch.musa.current_device()
         self.skip_encoder = skip_encoder
         self.lora_task_uids = lora_task_uids
 
@@ -197,8 +197,8 @@ class TRTLLMEncDecModel:
         # when enc-dec has to run as a component in a bigger workflow (e.g., multimodal), earlier components in the workflow may have results in its stream, which we should pass that stream in to avoid unnecessary stream sync
         self.stream = stream
         if self.stream is None:
-            self.stream = torch.cuda.Stream(self.device)
-        torch.cuda.set_stream(self.stream)
+            self.stream = torch.musa.Stream(self.device)
+        torch.musa.set_stream(self.stream)
 
         engine_dir = Path(engine_dir)
 
@@ -241,7 +241,7 @@ class TRTLLMEncDecModel:
             ) = engine_setup(component="encoder")
 
             # for Pipeline Parallelism in encoder
-            self.nccl_comm = torch.classes.trtllm.NcclCommunicatorOp(
+            self.mccl_comm = torch.classes.trtllm.NcclCommunicatorOp(
                 self.encoder_runtime_mapping.tp_size,
                 self.encoder_runtime_mapping.pp_size,
                 self.encoder_runtime_mapping.rank,
@@ -270,7 +270,7 @@ class TRTLLMEncDecModel:
                 self.encoder_runtime_mapping,
                 encoder_engine_buffer,
             ) = (None, None, None)
-            self.nccl_comm, self.encoder_session = None, None
+            self.mccl_comm, self.encoder_session = None, None
 
         (
             self.decoder_model_config,
@@ -416,7 +416,7 @@ class TRTLLMEncDecModel:
                 inputs["tasks"] = prompt_tasks.contiguous()
                 inputs["prompt_vocab_size"] = prompt_vocab_size.contiguous()
         else:
-            # just need a placeholder, engine will call NCCL to recv and fill data from previous rank
+            # just need a placeholder, engine will call MCCL to recv and fill data from previous rank
             inputs["hidden_states_input"] = torch.empty(
                 hidden_states_shape,
                 dtype=hidden_states_dtype("hidden_states_input"),
@@ -492,8 +492,8 @@ class TRTLLMEncDecModel:
         # -------------------------------------------
 
         # TRT session run
-        # Note: need cuda stream ID, not a torch Stream
-        ok = self.encoder_session.run(inputs, outputs, self.stream.cuda_stream)
+        # Note: need musa stream ID, not a torch Stream
+        ok = self.encoder_session.run(inputs, outputs, self.stream.musa_stream)
         assert ok, "Runtime execution failed"
         self.stream.synchronize()
 
@@ -504,10 +504,10 @@ class TRTLLMEncDecModel:
             if self.encoder_runtime_mapping.is_last_pp_rank():
                 for pp_rank in self.encoder_runtime_mapping.pp_group:
                     if pp_rank != self.encoder_runtime_mapping.rank:
-                        self.nccl_comm.send(encoder_output, pp_rank)
+                        self.mccl_comm.send(encoder_output, pp_rank)
                 return encoder_output
             else:
-                self.nccl_comm.recv(
+                self.mccl_comm.recv(
                     encoder_output, self.encoder_runtime_mapping.pp_group[-1]
                 )
                 return encoder_output
@@ -527,7 +527,7 @@ class TRTLLMEncDecModel:
         if (
             debug_mode and self.encoder_runtime_mapping.tp_rank == 0
         ):  # only tp_rank 0 print encoder output
-            torch.cuda.synchronize()
+            torch.musa.synchronize()
             # use print_tensor() to print the tensors registered in the encoder network
             print("--------------------------------------")
             print("Debug output for Encoder")
@@ -669,7 +669,7 @@ def test_fairseq_models(args):
     """
     from fairseq.models.transformer import TransformerModel
 
-    fairseq_model = TransformerModel.from_pretrained(model_name_or_path=args.model_name, data_name_or_path=args.model_name, bpe='subword_nmt', tokenizer='moses').cuda()
+    fairseq_model = TransformerModel.from_pretrained(model_name_or_path=args.model_name, data_name_or_path=args.model_name, bpe='subword_nmt', tokenizer='moses').musa()
 
     input_text = "Good Morning! How are you doing today?"
     input_ids = fairseq_model.encode(input_text)
@@ -701,8 +701,8 @@ def test_fairseq_models(args):
     fairseq_output_ids = torch.tensor(
         [9804, 391, 4, 4625, 167, 25, 1003, 5123, 17, 167, 1466, 1234, 171, 2]
     )
-    input_ids = torch.tensor([input_ids.tolist()]).type(torch.IntTensor).cuda()
-    decoder_input_ids = torch.IntTensor([[decoder_start_token_id]]).cuda()
+    input_ids = torch.tensor([input_ids.tolist()]).type(torch.IntTensor).musa()
+    decoder_input_ids = torch.IntTensor([[decoder_start_token_id]]).musa()
     decoder_input_ids = decoder_input_ids.repeat((input_ids.shape[0], 1))
 
     tllm_model = TRTLLMEncDecModel.from_engine(
@@ -724,7 +724,7 @@ def test_fairseq_models(args):
         debug_mode=args.debug_mode,
     )
     tok = time.time()
-    torch.cuda.synchronize()
+    torch.musa.synchronize()
 
     if return_dict:
         tllm_output_ids = tllm_output["output_ids"]
@@ -802,7 +802,7 @@ if __name__ == "__main__":
 
     max_new_tokens = args.max_new_tokens
     input_ids = tokenized_inputs.input_ids.type(torch.IntTensor).to(
-        "cuda"
+        "musa"
     )  # [batch_size, padded_length]
     # by default int64, must cast to int32! otherwise C++ kernel will interpret as [a, 0, b, 0, c, 0, ...]
 
@@ -837,7 +837,7 @@ if __name__ == "__main__":
 
     # start_id for decoder (could add more input_ids as forced_decoder_ids)
     decoder_input_ids = torch.IntTensor([[model_config.decoder_start_token_id]]).to(
-        "cuda"
+        "musa"
     )
     decoder_input_ids = decoder_input_ids.repeat((input_ids.shape[0], 1))
 
@@ -849,7 +849,7 @@ if __name__ == "__main__":
                     args.model_name,  # TODO: use model path instead
                     # torch_dtype=torch.float16 if '16' in dtype else torch.float32,  # TODO: use matched torch dtype
                 )
-                .to("cuda")
+                .to("musa")
                 .eval()
             )  # TODO: create config model path instead
             assert type(hf_model) in (
@@ -867,7 +867,7 @@ if __name__ == "__main__":
 
                 hf_model = (
                     PeftModel.from_pretrained(hf_model, args.lora_dir[0])
-                    .to("cuda")
+                    .to("musa")
                     .eval()
                 )
 
@@ -894,7 +894,7 @@ if __name__ == "__main__":
             # get hf output scores
             hf_output_ids = hf_gen_output.sequences
             # convert to logits
-            torch.cuda.synchronize()
+            torch.musa.synchronize()
             tok = time.time()
 
             output_ids = hf_output_ids.squeeze(dim=1)

@@ -83,7 +83,7 @@ class MT5Embedder(nn.Module):
 
     @torch.no_grad()
     def __call__(self, tokens, attention_mask, layer_index=-1):
-        with torch.cuda.amp.autocast():
+        with torch.musa.amp.autocast():
             outputs = self.model(
                 input_ids=tokens,
                 attention_mask=attention_mask,

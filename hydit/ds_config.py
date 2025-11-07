@@ -31,7 +31,7 @@ def deepspeed_config_from_args(args, global_batch_size):
                 "loss_scale": 0,
                 "loss_scale_window": 500,
                 "hysteresis": 2,
-                "min_loss_scale": 1e-3,
+                "min_loss_scale": 1,#1e-3
                 "initial_scale_power": 15,
             },
             "bf16": {"enabled": False},
@@ -42,7 +42,7 @@ def deepspeed_config_from_args(args, global_batch_size):
                 "device": "cpu",
                 "pin_memory": True,
             }
-            deepspeed_config["zero_optimization"]["offload_parameter"] = {
+            deepspeed_config["zero_optimization"]["offload_param"] = {
                 "device": "cpu",
                 "pin_memory": True,
             }

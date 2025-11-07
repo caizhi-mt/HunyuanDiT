@@ -33,7 +33,7 @@ class ExportONNX(object):
         self.args = args
         self.model = None
         # Set device and disable gradient
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "musa" if torch.musa.is_available() else "cpu"
         torch.set_grad_enabled(False)
 
         # Check arguments

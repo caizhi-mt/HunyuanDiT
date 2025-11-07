@@ -69,7 +69,7 @@ def set_seeds(seed_list, device=None):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    torch.musa.manual_seed_all(seed)
 
     return torch.Generator(device).manual_seed(seed)
 

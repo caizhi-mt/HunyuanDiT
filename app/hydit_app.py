@@ -144,8 +144,8 @@ def infer(
 
         # Add batch dimension and move to GPU (if available)
         input_image = (
-            input_image.unsqueeze(0).cuda()
-            if torch.cuda.is_available()
+            input_image.unsqueeze(0).musa()
+            if torch.musa.is_available()
             else input_image.unsqueeze(0)
         )
 

@@ -36,7 +36,7 @@ H = 1024
 W = 1024
 STEPS = 100
 CFG_SCALE = 5
-DEVICE = "cuda"
+DEVICE = "musa"
 DTYPE = torch.float16
 MODEL_PATH = "../models/HunYuanDiT-V1.1-fp16-pruned"
 LORA_WEIGHT = "../output/last.safetensors"
@@ -141,7 +141,7 @@ def generate_image(
             vae,
         ) = load_model_if_needed(MODEL_PATH, LORA_WEIGHT)
 
-        with torch.autocast("cuda"):
+        with torch.autocast("musa"):
             clip_h, clip_m, mt5_h, mt5_m = get_cond(
                 PROMPT,
                 mt5_embedder,
@@ -162,7 +162,7 @@ def generate_image(
             clip_m = torch.concat([clip_m, neg_clip_m], dim=0)
             mt5_h = torch.concat([mt5_h, neg_mt5_h], dim=0)
             mt5_m = torch.concat([mt5_m, neg_mt5_m], dim=0)
-            torch.cuda.empty_cache()
+            torch.musa.empty_cache()
 
         style = torch.as_tensor([0] * 2, device=DEVICE)
         # src hw, dst hw, 0, 0
@@ -198,13 +198,13 @@ def generate_image(
         )
         x1 = torch.randn(1, 4, H // 8, W // 8, dtype=torch.float16, device=DEVICE)
 
-        with torch.autocast("cuda"):
+        with torch.autocast("musa"):
             sample = sample_euler_ancestral(
                 cfg_denoise_func,
                 x1 * sigmas[0],
                 sigmas,
             )
-            torch.cuda.empty_cache()
+            torch.musa.empty_cache()
             with torch.no_grad():
                 latent = sample / 0.13025
                 image = vae.decode(latent).sample

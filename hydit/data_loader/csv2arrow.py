@@ -40,7 +40,7 @@ def make_arrow(csv_root, dataset_root, start_id=0, end_id=-1):
         os.makedirs(arrow_dir)
 
     data = pd.read_csv(csv_root)
-    data = data[["img_path", "text_zh"]]
+    data = data[["image_path", "text_zh"]]
     columns_list = data.columns.tolist()
     columns_list.append("image")
 

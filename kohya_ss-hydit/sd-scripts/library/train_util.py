@@ -3703,7 +3703,7 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
             "inductor",
             "aot_ts_nvfuser",
             "nvprims_nvfuser",
-            "cudagraphs",
+            "musagraphs",
             "ofi",
             "fx2trt",
             "onnxrt",
@@ -3956,8 +3956,8 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
     parser.add_argument(
         "--highvram",
         action="store_true",
-        help="disable low VRAM optimization. e.g. do not clear CUDA cache after each latent caching (for machines which have bigger VRAM) "
-        + "/ VRAMが少ない環境向け最適化を無効にする。たとえば各latentのキャッシュ後のCUDAキャッシュクリアを行わない等（VRAMが多い環境向け）",
+        help="disable low VRAM optimization. e.g. do not clear MUSA cache after each latent caching (for machines which have bigger VRAM) "
+        + "/ VRAMが少ない環境向け最適化を無効にする。たとえば各latentのキャッシュ後のMUSAキャッシュクリアを行わない等（VRAMが多い環境向け）",
     )
 
     parser.add_argument(
@@ -6277,10 +6277,10 @@ def sample_images_common(
 
     # save random state to restore later
     rng_state = torch.get_rng_state()
-    cuda_rng_state = None
+    musa_rng_state = None
     try:
-        cuda_rng_state = (
-            torch.cuda.get_rng_state() if torch.cuda.is_available() else None
+        musa_rng_state = (
+            torch.musa.get_rng_state() if torch.musa.is_available() else None
         )
     except Exception:
         pass
@@ -6328,13 +6328,13 @@ def sample_images_common(
     del pipeline
 
     # I'm not sure which of these is the correct way to clear the memory, but accelerator's device is used in the pipeline, so I'm using it here.
-    # with torch.cuda.device(torch.cuda.current_device()):
-    #     torch.cuda.empty_cache()
+    # with torch.musa.device(torch.musa.current_device()):
+    #     torch.musa.empty_cache()
     clean_memory_on_device(accelerator.device)
 
     torch.set_rng_state(rng_state)
-    if cuda_rng_state is not None:
-        torch.cuda.set_rng_state(cuda_rng_state)
+    if musa_rng_state is not None:
+        torch.musa.set_rng_state(musa_rng_state)
     vae.to(org_vae_device)
 
 
@@ -6369,11 +6369,11 @@ def sample_image_inference(
 
     if seed is not None:
         torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
+        torch.musa.manual_seed(seed)
     else:
         # True random sample image generation
         torch.seed()
-        torch.cuda.seed()
+        torch.musa.seed()
 
     scheduler = get_my_scheduler(
         sample_sampler=sampler_name,
@@ -6408,8 +6408,8 @@ def sample_image_inference(
             controlnet_image=controlnet_image,
         )
 
-    with torch.cuda.device(torch.cuda.current_device()):
-        torch.cuda.empty_cache()
+    with torch.musa.device(torch.musa.current_device()):
+        torch.musa.empty_cache()
 
     image = pipeline.latents_to_image(latents)[0]
 

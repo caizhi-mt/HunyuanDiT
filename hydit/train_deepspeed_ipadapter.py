@@ -251,22 +251,22 @@ def main(args):
     if args.training_parts == "lora":
         args.use_ema = False
 
-    assert torch.cuda.is_available(), "Training currently requires at least one GPU."
+    assert torch.musa.is_available(), "Training currently requires at least one GPU."
 
-    dist.init_process_group("nccl")
+    dist.init_process_group("mccl")
     world_size = dist.get_world_size()
     batch_size = args.batch_size
     grad_accu_steps = args.grad_accu_steps
     global_batch_size = world_size * batch_size * grad_accu_steps
 
     rank = dist.get_rank()
-    device = rank % torch.cuda.device_count()
+    device = rank % torch.musa.device_count()
     seed = args.global_seed * world_size + rank
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.cuda.set_device(device)
+    torch.musa.manual_seed_all(seed)
+    torch.musa.set_device(device)
     print(f"Starting rank={rank}, seed={seed}, world_size={world_size}.")
     deepspeed_config = deepspeed_config_from_args(args, global_batch_size)
 
@@ -639,7 +639,7 @@ def main(args):
             train_steps += 1
             if train_steps % args.log_every == 0:
                 # Measure training speed:
-                torch.cuda.synchronize()
+                torch.musa.synchronize()
                 end_time = time.time()
                 steps_per_sec = log_steps / (end_time - start_time)
                 # Reduce loss history over all processes:

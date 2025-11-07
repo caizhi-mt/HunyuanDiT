@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models import ModelMixin
-from polygraphy import cuda
+from polygraphy import musa
 
 from .engine import Engine
 
@@ -21,7 +21,7 @@ class TRTModel(ModelMixin, ConfigMixin):
         text_maxlen=77,
         embedding_dim=768,
         max_batch_size=1,
-        plugin_path="./ckpts/trt_model/fmha_plugins/10.1_plugin_cuda11/fMHAPlugin.so",
+        plugin_path="./ckpts/trt_model/fmha_plugins/10.1_plugin_musa11/fMHAPlugin.so",
     ):
         super().__init__()
         # create engine
@@ -32,13 +32,13 @@ class TRTModel(ModelMixin, ConfigMixin):
         self.engine_dir = engine_dir
         self.engine = Engine(self.model_name, self.engine_dir)
         self.engine.activate(plugin_path)
-        # create cuda stream
-        self.stream = torch.cuda.Stream().cuda_stream
+        # create musa stream
+        self.stream = torch.musa.Stream().musa_stream
         self.latent_width = image_width // 8
         self.latent_height = image_height // 8
         self.text_maxlen = text_maxlen
         self.embedding_dim = embedding_dim
-        device = "cuda:{}".format(device_id)
+        device = "musa:{}".format(device_id)
         self.engine_device = torch.device(device)
         print("[INFO] Create hcf nv controlled unet success")
 
@@ -155,12 +155,12 @@ class TRTModel(ModelMixin, ConfigMixin):
         output = torch.zeros(
             (2 * self.max_batch_size, 8, self.latent_height, self.latent_width),
             dtype=torch.float16,
-            device="cuda",
+            device="musa",
         )
         self.engine.context.set_tensor_address("output", output.contiguous().data_ptr())
 
         self.engine.context.execute_async_v3(self.stream)
-        torch.cuda.synchronize()
+        torch.musa.synchronize()
 
         output.resize_(tuple(self.engine.context.get_tensor_shape("output")))
         return output

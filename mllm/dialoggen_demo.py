@@ -124,7 +124,7 @@ def eval_model(
             prompt, models["tokenizer"], IMAGE_TOKEN_INDEX, return_tensors="pt"
         )
         .unsqueeze(0)
-        .cuda()
+        .musa()
     )
     with torch.inference_mode():
         output_ids = models["model"].generate(

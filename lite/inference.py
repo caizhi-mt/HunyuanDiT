@@ -22,13 +22,13 @@ TEXT_ENCODER_CONF = {
 
 def flush():
     gc.collect()
-    torch.cuda.empty_cache()
+    torch.musa.empty_cache()
 
 
 class End2End(object):
     def __init__(self, model_id="Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled"):
         self.model_id = model_id
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "musa" if torch.musa.is_available() else "cpu"
         # ========================================================================
         self.default_negative_prompt = NEGATIVE_PROMPT
         logger.info("==================================================")
