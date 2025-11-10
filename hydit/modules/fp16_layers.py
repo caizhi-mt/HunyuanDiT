@@ -3,8 +3,8 @@ from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 
 
-_FLOAT_TYPES = (torch.FloatTensor, torch.cuda.FloatTensor)
-_HALF_TYPES = (torch.HalfTensor, torch.cuda.HalfTensor)
+_FLOAT_TYPES = (torch.FloatTensor, torch.musa.FloatTensor)
+_HALF_TYPES = (torch.HalfTensor, torch.musa.HalfTensor)
 
 
 def conversion_helper(val, conversion):

@@ -1286,15 +1286,15 @@ if __name__ == "__main__":
     denoiser: HunYuanDiT = DiT_g_2(input_size=(128, 128))
     sd = torch.load("./model/denoiser/pytorch_model_module.pt")
     denoiser.load_state_dict(sd)
-    denoiser.half().cuda()
+    denoiser.half().musa()
     denoiser.enable_gradient_checkpointing()
 
     clip_tokenizer = AutoTokenizer.from_pretrained("./model/clip")
-    clip_encoder = BertModel.from_pretrained("./model/clip").half().cuda()
+    clip_encoder = BertModel.from_pretrained("./model/clip").half().musa()
 
     mt5_embedder = MT5Embedder("./model/mt5", torch_dtype=torch.float16, max_length=256)
 
-    vae = AutoencoderKL.from_pretrained("./model/vae").half().cuda()
+    vae = AutoencoderKL.from_pretrained("./model/vae").half().musa()
 
     print(sum(p.numel() for p in denoiser.parameters()) / 1e6)
     print(sum(p.numel() for p in mt5_embedder.parameters()) / 1e6)

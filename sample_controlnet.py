@@ -60,7 +60,7 @@ if __name__ == "__main__":
         Image.open(args.condition_image_path).convert("RGB").resize((width, height))
     )
     image = norm_transform(condition)
-    image = image.unsqueeze(0).cuda()
+    image = image.unsqueeze(0).musa()
 
     results = gen.predict(
         args.prompt,

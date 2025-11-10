@@ -198,7 +198,7 @@ class End2End(object):
         logger.info(f"Got text-to-image model root path: {t2i_root_path}")
 
         # Set device and disable gradient
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "musa" if torch.musa.is_available() else "cpu"
         torch.set_grad_enabled(False)
         # Disable BertModel logging checkpoint info
         tf_logger.setLevel("ERROR")
@@ -275,7 +275,7 @@ class End2End(object):
 
             trt_dir = self.root / "model_trt"
             engine_dir = trt_dir / "engine"
-            plugin_path = trt_dir / "fmha_plugins/10.1_plugin_cuda11/fMHAPlugin.so"
+            plugin_path = trt_dir / "fmha_plugins/10.1_plugin_musa11/fMHAPlugin.so"
             model_name = "model_onnx"
 
             logger.info(f"Loading TensorRT model {engine_dir}/{model_name}...")
@@ -624,7 +624,7 @@ class End2End(object):
         if controlnet != "None" and controlnet != self.controlnet:
             self.load_controlnet(controlnet, sampler)
         elif controlnet == "None" and controlnet != self.controlnet:
-            torch.cuda.empty_cache()
+            torch.musa.empty_cache()
             logger.info("更新管道")
             self.pipeline, self.sampler = get_pipeline(
                 self.args,
@@ -702,7 +702,7 @@ class End2End(object):
                 use_fp16=self.args.use_fp16,
                 learn_sigma=self.args.learn_sigma,
             )[0]
-        torch.cuda.empty_cache()
+        torch.musa.empty_cache()
         gen_time = time.time() - start_time
         logger.debug(f"Success, time: {gen_time}")
         if lora_ctrls is not None and lora_ctrls != []:

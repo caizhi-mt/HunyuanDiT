@@ -15,7 +15,7 @@ def is_rocm_pytorch() -> bool:
     is_rocm = False
     if TORCH_VERSION != "parrots":
         try:
-            from torch.utils.cpp_extension import ROCM_HOME
+            from torch_musa.utils.musa_extension import ROCM_HOME
 
             is_rocm = (
                 True
@@ -52,22 +52,22 @@ def is_musa_available() -> bool:
     return IS_MUSA_AVAILABLE
 
 
-def is_cuda_available() -> bool:
-    """Returns True if cuda devices exist."""
-    return torch.cuda.is_available()
+def is_musa_available() -> bool:
+    """Returns True if musa devices exist."""
+    return torch.musa.is_available()
 
 
-def _get_cuda_home():
+def _get_musa_home():
     if TORCH_VERSION == "parrots":
-        from parrots.utils.build_extension import CUDA_HOME
+        from parrots.utils.build_extension import MUSA_HOME
     else:
         if is_rocm_pytorch():
-            from torch.utils.cpp_extension import ROCM_HOME
+            from torch_musa.utils.musa_extension import ROCM_HOME
 
-            CUDA_HOME = ROCM_HOME
+            MUSA_HOME = ROCM_HOME
         else:
-            from torch.utils.cpp_extension import CUDA_HOME
-    return CUDA_HOME
+            from torch_musa.utils.musa_extension import MUSA_HOME
+    return MUSA_HOME
 
 
 def _get_musa_home():
@@ -82,9 +82,9 @@ def collect_env():
 
             - sys.platform: The variable of ``sys.platform``.
             - Python: Python version.
-            - CUDA available: Bool, indicating if CUDA is available.
+            - MUSA available: Bool, indicating if MUSA is available.
             - GPU devices: Device type of each GPU.
-            - CUDA_HOME (optional): The env var ``CUDA_HOME``.
+            - MUSA_HOME (optional): The env var ``MUSA_HOME``.
             - NVCC (optional): NVCC version.
             - GCC: GCC version, "n/a" if GCC is not installed.
             - MSVC: Microsoft Virtual C++ Compiler version, Windows only.
@@ -100,44 +100,44 @@ def collect_env():
     env_info["sys.platform"] = sys.platform
     env_info["Python"] = sys.version.replace("\n", "")
 
-    cuda_available = is_cuda_available()
     musa_available = is_musa_available()
-    env_info["CUDA available"] = cuda_available
+    musa_available = is_musa_available()
+    env_info["MUSA available"] = musa_available
     env_info["MUSA available"] = musa_available
     env_info["numpy_random_seed"] = np.random.get_state()[1][0]
 
-    if cuda_available:
+    if musa_available:
         devices = defaultdict(list)
-        for k in range(torch.cuda.device_count()):
-            devices[torch.cuda.get_device_name(k)].append(str(k))
+        for k in range(torch.musa.device_count()):
+            devices[torch.musa.get_device_name(k)].append(str(k))
         for name, device_ids in devices.items():
             env_info["GPU " + ",".join(device_ids)] = name
 
-        CUDA_HOME = _get_cuda_home()
-        env_info["CUDA_HOME"] = CUDA_HOME
+        MUSA_HOME = _get_musa_home()
+        env_info["MUSA_HOME"] = MUSA_HOME
 
-        if CUDA_HOME is not None and osp.isdir(CUDA_HOME):
-            if CUDA_HOME == "/opt/rocm":
+        if MUSA_HOME is not None and osp.isdir(MUSA_HOME):
+            if MUSA_HOME == "/opt/rocm":
                 try:
-                    nvcc = osp.join(CUDA_HOME, "hip/bin/hipcc")
-                    nvcc = subprocess.check_output(f'"{nvcc}" --version', shell=True)
-                    nvcc = nvcc.decode("utf-8").strip()
-                    release = nvcc.rfind("HIP version:")
-                    build = nvcc.rfind("")
-                    nvcc = nvcc[release:build].strip()
+                    mcc = osp.join(MUSA_HOME, "hip/bin/hipcc")
+                    mcc = subprocess.check_output(f'"{mcc}" --version', shell=True)
+                    mcc = mcc.decode("utf-8").strip()
+                    release = mcc.rfind("HIP version:")
+                    build = mcc.rfind("")
+                    mcc = mcc[release:build].strip()
                 except subprocess.SubprocessError:
-                    nvcc = "Not Available"
+                    mcc = "Not Available"
             else:
                 try:
-                    nvcc = osp.join(CUDA_HOME, "bin/nvcc")
-                    nvcc = subprocess.check_output(f'"{nvcc}" -V', shell=True)
-                    nvcc = nvcc.decode("utf-8").strip()
-                    release = nvcc.rfind("Cuda compilation tools")
-                    build = nvcc.rfind("Build ")
-                    nvcc = nvcc[release:build].strip()
+                    mcc = osp.join(MUSA_HOME, "bin/mcc")
+                    mcc = subprocess.check_output(f'"{mcc}" -V', shell=True)
+                    mcc = mcc.decode("utf-8").strip()
+                    release = mcc.rfind("Cuda compilation tools")
+                    build = mcc.rfind("Build ")
+                    mcc = mcc[release:build].strip()
                 except subprocess.SubprocessError:
-                    nvcc = "Not Available"
-            env_info["NVCC"] = nvcc
+                    mcc = "Not Available"
+            env_info["NVCC"] = mcc
     elif musa_available:
         devices = defaultdict(list)
         for k in range(torch.musa.device_count()):

@@ -8,10 +8,12 @@ try:
 
     if hasattr(flash_attn, "__version__") and int(flash_attn.__version__[0]) == 2:
         from flash_attn.flash_attn_interface import flash_attn_kvpacked_func
-        from flash_attn.modules.mha import FlashSelfAttention, FlashCrossAttention
+        from flash_attn.modules.mha import CrossAttention as FlashCrossAttention
+        from flash_attn.modules.mha import SelfAttention as FlashSelfAttention
     else:
         from flash_attn.flash_attn_interface import flash_attn_unpadded_kvpacked_func
-        from flash_attn.modules.mha import FlashSelfAttention, FlashCrossAttention
+        from flash_attn.modules.mha import CrossAttention as FlashCrossAttention
+        from flash_attn.modules.mha import SelfAttention as FlashSelfAttention
 except Exception as e:
     print(f"flash_attn import failed: {e}")
 
@@ -174,7 +176,9 @@ class FlashSelfMHAModified(nn.Module):
             if qk_norm
             else nn.Identity()
         )
-        self.inner_attn = FlashSelfAttention(attention_dropout=attn_drop)
+        #self.inner_attn = FlashSelfAttention(attention_dropout=attn_drop)
+        self._attn_drop = attn_drop
+        self.inner_attn = torch.ops.aten._scaled_dot_product_attention_flash_musa
         self.out_proj = nn.Linear(dim, dim, bias=qkv_bias, **factory_kwargs)
         self.proj_drop = nn.Dropout(proj_drop)
 
@@ -204,7 +208,10 @@ class FlashSelfMHAModified(nn.Module):
             q, k = qq, kk
 
         qkv = torch.stack([q, k, v], dim=2)  # [b, s, 3, h, d]
-        context = self.inner_attn(qkv)
+        #context = self.inner_attn(qkv)
+        context, logsumexp, dropout_mask = self.inner_attn(q.transpose(1,2), k.transpose(1,2), v.transpose(1,2), dropout_p=self._attn_drop, is_causal=False)
+        context = context.transpose(1,2)
+
         out = self.out_proj(context.view(b, s, d))
         out = self.proj_drop(out)
 
@@ -302,6 +309,10 @@ class FlashCrossMHAModified(nn.Module):
             q = qq  # [b, s1, h, d]
         kv = torch.stack([k, v], dim=2)  # [b, s1, 2, h, d]
         context = self.inner_attn(q, kv)  # [b, s1, h, d]
+
+
+
+        context = context.contiguous()
         context = context.view(b, s1, -1)  # [b, s1, D]
 
         if is_ipa:

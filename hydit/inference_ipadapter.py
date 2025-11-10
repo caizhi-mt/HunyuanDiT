@@ -183,7 +183,7 @@ class End2End(object):
         logger.info(f"Got text-to-image model root path: {t2i_root_path}")
 
         # Set device and disable gradient
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "musa" if torch.musa.is_available() else "cpu"
         torch.set_grad_enabled(False)
         # Disable BertModel logging checkpoint info
         tf_logger.setLevel("ERROR")
@@ -262,7 +262,7 @@ class End2End(object):
 
             trt_dir = self.root / "model_trt"
             engine_dir = trt_dir / "engine"
-            plugin_path = trt_dir / "fmha_plugins/9.2_plugin_cuda11/fMHAPlugin.so"
+            plugin_path = trt_dir / "fmha_plugins/9.2_plugin_musa11/fMHAPlugin.so"
             model_name = "model_onnx"
 
             logger.info(f"Loading TensorRT model {engine_dir}/{model_name}...")

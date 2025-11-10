@@ -41,7 +41,7 @@ def load_lora(lora, to_load, weight):
                 "lora",
                 (lora[A_name], lora[B_name], alpha, mid, dora_scale),
             )
-            lora_update = torch.matmul(lora[A_name].to("cuda"), lora[B_name].to("cuda"))
+            lora_update = torch.matmul(lora[A_name].to("musa"), lora[B_name].to("musa"))
             if alpha:
                 lora_update *= alpha / lora[A_name].shape[1]
             else:

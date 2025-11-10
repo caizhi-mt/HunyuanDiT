@@ -10,11 +10,11 @@ from .onnxpose import inference_pose
 class Wholebody:
     def __init__(self):
         rank = int(os.getenv("LOCAL_RANK", "0"))
-        device = f"cuda:{rank}"
+        device = f"musa:{rank}"
         providers = (
             ["CPUExecutionProvider"]
             if device == "cpu"
-            else [("CUDAExecutionProvider", {"device_id": rank})]
+            else [("MUSAExecutionProvider", {"device_id": rank})]
         )
         onnx_det = "hydit/annotator/ckpts/yolox_l.onnx"
         onnx_pose = "hydit/annotator/ckpts/dw-ll_ucoco_384.onnx"

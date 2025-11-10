@@ -39,14 +39,14 @@ def load_pretrained_model(
     load_8bit=False,
     load_4bit=False,
     device_map="auto",
-    device="cuda",
+    device="musa",
     use_flash_attn=False,
     llava_type_model=True,
     **kwargs,
 ):
     kwargs = {"device_map": device_map, **kwargs}
 
-    if device != "cuda":
+    if device != "musa":
         kwargs["device_map"] = {"": device}
     if load_8bit:
         kwargs["load_in_8bit"] = True

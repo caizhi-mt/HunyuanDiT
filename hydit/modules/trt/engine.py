@@ -23,7 +23,7 @@ from copy import copy
 import numpy as np
 import tensorrt as trt
 import torch
-from polygraphy import cuda
+from polygraphy import musa
 from polygraphy.backend.common import bytes_from_path
 from polygraphy.backend.trt import CreateConfig, Profile
 from polygraphy.backend.trt import (
@@ -35,7 +35,7 @@ from polygraphy.backend.trt import (
 from polygraphy.backend.trt import util as trt_util
 import ctypes
 from glob import glob
-from cuda import cudart
+from musa import musart
 
 TRT_LOGGER = trt.Logger(trt.Logger.INFO)
 trt_util.TRT_LOGGER = TRT_LOGGER
@@ -112,7 +112,7 @@ class Engine:
         self.context = self.engine.create_execution_context()
 
     def get_shared_memory(self):
-        _, device_memory = cudart.cudaMalloc(self.engine.device_memory_size)
+        _, device_memory = musart.musaMalloc(self.engine.device_memory_size)
         self.device_memory = device_memory
         return self.device_memory
 
@@ -124,7 +124,7 @@ class Engine:
         result = self.context.set_binding_shape(idx, shape)
         return result
 
-    def allocate_buffers(self, shape_dict=None, device="cuda"):
+    def allocate_buffers(self, shape_dict=None, device="musa"):
         print("Allocate buffers and bindings inputs:")
         for idx in range(trt_util.get_bindings_per_profile(self.engine)):
             binding = self.engine[idx]
@@ -155,7 +155,7 @@ class Engine:
 
             print(f"  binding={binding}, shape={shape}, dtype={tensor.dtype}")
             self.tensors[binding] = tensor
-            self.buffers[binding] = cuda.DeviceView(
+            self.buffers[binding] = musa.DeviceView(
                 ptr=tensor.data_ptr(), shape=shape, dtype=dtype
             )
 
@@ -164,7 +164,7 @@ class Engine:
         # shallow copy of ordered dict
         device_buffers = copy(self.buffers)
         for name, buf in feed_dict.items():
-            assert isinstance(buf, cuda.DeviceView)
+            assert isinstance(buf, musa.DeviceView)
             device_buffers[name] = buf
             self.binding_input(name, buf.shape)
         bindings = [0] * start_binding + [buf.ptr for buf in device_buffers.values()]

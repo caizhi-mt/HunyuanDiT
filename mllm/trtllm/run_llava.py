@@ -137,12 +137,12 @@ class MultimodalModelRunner:
         self.args = args
 
         self.runtime_rank = tensorrt_llm.mpi_rank()
-        device_id = self.runtime_rank % torch.cuda.device_count()
-        torch.cuda.set_device(device_id)
-        self.device = "cuda:%d" % (device_id)
+        device_id = self.runtime_rank % torch.musa.device_count()
+        torch.musa.set_device(device_id)
+        self.device = "musa:%d" % (device_id)
 
-        self.stream = torch.cuda.Stream(torch.cuda.current_device())
-        torch.cuda.set_stream(self.stream)
+        self.stream = torch.musa.Stream(torch.musa.current_device())
+        torch.musa.set_stream(self.stream)
 
         # parse model type from visual engine config
         with open(os.path.join(self.args.visual_engine_dir, "config.json"), "r") as f:
@@ -436,7 +436,7 @@ class MultimodalModelRunner:
         }
 
         ok = self.visual_encoder_session.run(
-            visual_features, visual_outputs, self.stream.cuda_stream
+            visual_features, visual_outputs, self.stream.musa_stream
         )
         assert ok, "Runtime execution failed for vision encoder session"
         self.stream.synchronize()
@@ -506,7 +506,7 @@ class MultimodalModelRunner:
             task_vocab_size = torch.tensor(
                 [prompt_table.shape[1]],
                 dtype=torch.int32,
-            ).cuda()
+            ).musa()
             prompt_table = prompt_table.view(
                 (prompt_table.shape[0] * prompt_table.shape[1], prompt_table.shape[2])
             )
@@ -515,19 +515,19 @@ class MultimodalModelRunner:
                 prompt_table.shape[1] == hidden_size
             ), "Prompt table dimensions do not match hidden size"
 
-            prompt_table = prompt_table.cuda().to(
+            prompt_table = prompt_table.musa().to(
                 dtype=tensorrt_llm._utils.str_dtype_to_torch(self.model_config.dtype)
             )
         else:
-            prompt_table = torch.empty([1, hidden_size]).cuda()
-            task_vocab_size = torch.zeros([1]).cuda()
+            prompt_table = torch.empty([1, hidden_size]).musa()
+            task_vocab_size = torch.zeros([1]).musa()
 
         if self.model_config.remove_input_padding:
-            tasks = torch.zeros([torch.sum(input_lengths)], dtype=torch.int32).cuda()
+            tasks = torch.zeros([torch.sum(input_lengths)], dtype=torch.int32).musa()
             if self.decoder_llm:
                 tasks = tasks.unsqueeze(0)
         else:
-            tasks = torch.zeros(input_ids.shape, dtype=torch.int32).cuda()
+            tasks = torch.zeros(input_ids.shape, dtype=torch.int32).musa()
 
         return [prompt_table, tasks, task_vocab_size]
 
@@ -688,7 +688,7 @@ class MultimodalModelRunner:
                 #    image = processor(text=input_text,
                 #                      images=raw_image,
                 #                      return_tensors="pt")['pixel_values']
-                image = image_pre_obj.encode(raw_image).cuda()
+                image = image_pre_obj.encode(raw_image).musa()
         # Repeat inputs to match batch size
         pre_prompt = [pre_prompt] * self.args.batch_size
         post_prompt = [post_prompt] * self.args.batch_size
@@ -759,7 +759,7 @@ class MultimodalModelRunner:
         #                                 attention_mask=attention_mask,
         #                                 warmup=False)
         # from datetime import datetime
-        # torch.cuda.synchronize()
+        # torch.musa.synchronize()
         # a = datetime.now()
         # for _ in range(num_iters):
         #    output_text = model.generate(pre_prompt,
@@ -769,7 +769,7 @@ class MultimodalModelRunner:
         #                                 max_new_tokens,
         #                                 attention_mask=attention_mask,
         #                                 warmup=False)
-        # torch.cuda.synchronize()
+        # torch.musa.synchronize()
         # b = datetime.now()
         # print("cost time : ",  (b - a).total_seconds() / num_iters)
         if self.runtime_rank == 0:

@@ -185,7 +185,7 @@ def get_cond(
     clip_encoder: BertModel,
     max_length_clip: int = 75 * 3 + 2,
     dtype=None,
-    device="cuda",
+    device="musa",
 ):
     """
     Get CLIP and mT5 embeddings for HunYuan DiT
@@ -235,7 +235,7 @@ def load_scheduler_sigmas():
 def load_model(
     model_path: str,
     dtype=torch.float16,
-    device="cuda",
+    device="musa",
     use_extra_cond=False,
     dit_path=None,
 ):
@@ -763,12 +763,12 @@ def save_hydit_model_on_epoch_end_or_stepwise(
 if __name__ == "__main__":
     clip_tokenizer = AutoTokenizer.from_pretrained("./model/clip")
     clip_tokenizer.eos_token_id = 2
-    clip_encoder = BertModel.from_pretrained("./model/clip").half().cuda()
+    clip_encoder = BertModel.from_pretrained("./model/clip").half().musa()
 
     mt5_embedder = MT5Embedder(
         "./model/mt5", torch_dtype=torch.float16, max_length=256
-    ).cuda()
-    mt5_embedder.device = "cuda"
+    ).musa()
+    mt5_embedder.device = "musa"
 
     print(clip_tokenizer.pad_token_id, mt5_embedder.tokenizer.pad_token_id)
     print(clip_tokenizer.eos_token_id, mt5_embedder.tokenizer.eos_token_id)

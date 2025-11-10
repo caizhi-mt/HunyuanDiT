@@ -83,7 +83,7 @@ def parse_arguments():
 class VisionEngineBuilder:
 
     def __init__(self, args):
-        args.device = torch.device("cuda") if torch.cuda.is_available() else "cpu"
+        args.device = torch.device("musa") if torch.musa.is_available() else "cpu"
         if args.output_dir is None:
             args.output_dir = "visual_engines/%s" % (
                 args.model_path.split("/")[-1].split(".")[0]

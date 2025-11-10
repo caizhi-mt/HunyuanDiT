@@ -274,8 +274,8 @@ class ModelWorker:
                 "error_code": 1,
             }
             yield json.dumps(ret).encode() + b"\0"
-        except torch.cuda.CudaError as e:
-            print("Caught torch.cuda.CudaError:", e)
+        except torch.musa.CudaError as e:
+            print("Caught torch.musa.CudaError:", e)
             ret = {
                 "text": server_error_msg,
                 "error_code": 1,
@@ -333,7 +333,7 @@ if __name__ == "__main__":
     parser.add_argument("--model-path", type=str, default="facebook/opt-350m")
     parser.add_argument("--model-base", type=str, default=None)
     parser.add_argument("--model-name", type=str)
-    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--device", type=str, default="musa")
     parser.add_argument(
         "--multi-modal",
         action="store_true",

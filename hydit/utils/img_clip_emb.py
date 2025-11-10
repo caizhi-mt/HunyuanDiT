@@ -727,7 +727,7 @@ class ImgClipEmbDetector:
         self.image_preprocess = image_preprocess
         config = dict()
         config["vision_config"] = "ipadapter/model_configs/ViT-H-14.json"
-        config["gpu"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        config["gpu"] = torch.device("musa" if torch.musa.is_available() else "cpu")
         config["text_config"] = (
             "ipadapter/model_configs/RoBERTa-wwm-ext-large-cn-en.json"
         )
